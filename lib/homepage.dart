@@ -1,82 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:post_data/api.dart';
+import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+  const MyHomePage({Key? key}) : super(key: key);
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List data = [];
-  int start = 0;
-  int end = 10;
-  loadMore() async {
-    start = end + 1;
-    end += end;
-    var data = await getPostData(start, end);
-    setState(() {
-      data.addAll(data);
-    });
-  }
+  static const _pageSize = 10;
+  final PagingController<int, dynamic> _pagingController =
+      PagingController(firstPageKey: 0);
+  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
-    getPostData(start, end).then((value) {
-      setState(() {
-        print("value: $value");
-        data = value;
-      });
+    _pagingController.addPageRequestListener((pageKey) {
+      fetchPosts(pageKey);
     });
+  }
+
+  Future<void> fetchPosts(int pageKey) async {
+    try {
+      final start = pageKey * _pageSize;
+      final end = start + _pageSize;
+      final newData = await getPostData(start, end);
+      final isLastPage = newData.length < _pageSize;
+      if (isLastPage) {
+        _pagingController.appendLastPage(newData);
+      } else {
+        _currentPage++;
+        _pagingController.appendPage(newData, _currentPage);
+      }
+    } catch (error) {
+      _pagingController.error = error;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: const Text('Post Data',
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-        ),
-        body: Column(
-          children: [
-            Expanded(
-              child: ListView.builder(
-                itemCount: data.length,
-                itemBuilder: (context, index) {
-                  return Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Row(
-                          children: [
-                            Text(data[index]['id'].toString()),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 40.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(data[index]['title'],
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold)),
-                                    Text(data[index]['body'])
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+      appBar: AppBar(
+        title: const Text('Post Data',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+      ),
+      body: PagedListView<int, dynamic>(
+        pagingController: _pagingController,
+        builderDelegate: PagedChildBuilderDelegate(
+          itemBuilder: (context, item, index) => Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: Row(
+              children: [
+                Text(item['id'].toString()),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 40.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item['title'],
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+                        Text(item['body']),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ));
+          ),
+        ),
+      ),
+    );
   }
 }

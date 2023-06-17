@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-Future<List> getPostData(start, end) async {
+Future<List> getPostData(int start, int end) async {
   var url = Uri.parse(
       "https://jsonplaceholder.typicode.com/posts?_start=$start&_limit=$end");
   var response = await http.get(url);
